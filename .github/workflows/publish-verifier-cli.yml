@@ -1,15 +1,15 @@
-name: Publish verifier-cli to GitHub Packages
+name: Release verifier-cli
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  publish:
-    name: Publish
+  release:
+    name: Build & release
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Fetch Sources
@@ -33,21 +33,26 @@ jobs:
           path: ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
 
-      # The verifier publication transitively depends on `structure-intellij`, so the dev version
-      # of that library has to be available in the local Maven cache before publishing.
+      # The verifier-cli build transitively needs `structure-intellij`, so the dev version of that
+      # library has to be in the local Maven cache before building the shadow JAR.
       - name: Publish structure-intellij to Maven Local
         run: |
           cd plugins-verifier-service
           ./gradlew :intellij-plugin-structure:publishToMavenLocal
 
-      # Each workflow run gets a monotonically increasing GitHub `run_number`, so the published
-      # version is unique across runs and GitHub Packages never refuses an overwrite.
-      - name: Publish verifier-cli shadow JAR
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build shadow JAR
         run: |
           cd intellij-plugin-verifier
-          ./gradlew publishVerifierCliPublicationToGitHubPackagesRepository \
+          ./gradlew :verifier-cli:shadowJar \
             -PverifierProjectVersion=1.403-ideavim-${{ github.run_number }} \
             -PintellijStructureVersion=dev
+
+      - name: Create GitHub Release with asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="cli-${{ github.run_number }}"
+          gh release create "$tag" \
+            --title "verifier-cli 1.403-ideavim-${{ github.run_number }}" \
+            --notes "Build of verifier-cli (with IdeaVIM dev-channel override) from commit ${{ github.sha }}." \
+            intellij-plugin-verifier/verifier-cli/build/libs/verifier-cli-*-all.jar
