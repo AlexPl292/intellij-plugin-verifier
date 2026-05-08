@@ -79,9 +79,10 @@ class MarketplaceRepository(val repositoryURL: URL = DEFAULT_URL) : PluginReposi
 
   override fun getLastCompatibleVersionOfPlugin(ideVersion: IdeVersion, pluginId: String): UpdateInfo? {
     val pluginAndVersion = PluginAndVersion(pluginId, ideVersion.intern())
+    val channel = if (pluginId == "IdeaVIM") "dev" else ""
     val compatibleUpdates: List<MarketplaceUpdate> = pluginMetadataCache.get(pluginAndVersion) {
       pluginRepositoryInstance.pluginManager
-        .searchCompatibleUpdates(listOf(pluginId), ideVersion.asString())
+        .searchCompatibleUpdates(listOf(pluginId), ideVersion.asString(), channel = channel)
         .map { MarketplaceUpdate(it.pluginId, it.id) }
     }
     return compatibleUpdates
