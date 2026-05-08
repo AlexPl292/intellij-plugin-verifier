@@ -2,11 +2,6 @@ name: Publish verifier-cli to GitHub Packages
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Artifact version (use a -SNAPSHOT suffix to allow republishing the same label)"
-        required: true
-        default: "dev-ideavim-SNAPSHOT"
 
 jobs:
   publish:
@@ -45,6 +40,8 @@ jobs:
           cd plugins-verifier-service
           ./gradlew :intellij-plugin-structure:publishToMavenLocal
 
+      # Each workflow run gets a monotonically increasing GitHub `run_number`, so the published
+      # version is unique across runs and GitHub Packages never refuses an overwrite.
       - name: Publish verifier-cli shadow JAR
         env:
           GITHUB_ACTOR: ${{ github.actor }}
@@ -52,5 +49,5 @@ jobs:
         run: |
           cd intellij-plugin-verifier
           ./gradlew publishVerifierCliPublicationToGitHubPackagesRepository \
-            -PverifierProjectVersion=${{ inputs.version }} \
+            -PverifierProjectVersion=1.403-ideavim-${{ github.run_number }} \
             -PintellijStructureVersion=dev
