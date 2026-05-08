@@ -171,13 +171,6 @@ publishing {
   }
 }
 
-// Attach the verifier-cli shadow JAR (`-all` classifier) to the VerifierCli publication once the
-// subproject is evaluated, so the runnable fat JAR is uploaded alongside the regular artifact.
-gradle.projectsEvaluated {
-  (publishing.publications[Publication.cli] as MavenPublication)
-    .artifact(project(":verifier-cli").tasks.named("shadowJar"))
-}
-
 signing {
   isRequired = System.getenv("TEAMCITY_VERSION") != null
 
