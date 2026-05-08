@@ -1,0 +1,56 @@
+name: Publish verifier-cli to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Artifact version (use a -SNAPSHOT suffix to allow republishing the same label)"
+        required: true
+        default: "dev-ideavim-SNAPSHOT"
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Fetch Sources
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Setup Gradle Dependencies Cache
+        uses: actions/cache@v5.0.3
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-caches-${{ hashFiles('**/*.gradle', '**/*.gradle.kts', 'gradle.properties') }}
+
+      - name: Setup Gradle Wrapper Cache
+        uses: actions/cache@v5.0.3
+        with:
+          path: ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
+
+      # The verifier publication transitively depends on `structure-intellij`, so the dev version
+      # of that library has to be available in the local Maven cache before publishing.
+      - name: Publish structure-intellij to Maven Local
+        run: |
+          cd plugins-verifier-service
+          ./gradlew :intellij-plugin-structure:publishToMavenLocal
+
+      - name: Publish verifier-cli shadow JAR
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd intellij-plugin-verifier
+          ./gradlew publishVerifierCliPublicationToGitHubPackagesRepository \
+            -PverifierProjectVersion=${{ inputs.version }} \
+            -PintellijStructureVersion=dev
